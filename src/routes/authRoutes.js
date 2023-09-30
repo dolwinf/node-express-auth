@@ -6,32 +6,82 @@ const validator = require("validator");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const authMiddleware = require("../middleware/authMiddleware");
+const dotenv = require("dotenv");
+dotenv.config();
 
-// Setup nodemailer
-let transporter = nodemailer.createTransport({
-  // Trasnport configuration
-  service: "gmail",
-  auth: {
-    type: "OAuth2",
-    user: "dolwinf@gmail.com",
-    clientId:
-      "501654627364-bd2pvnpgvie8se9jnmbjinbrqgabgdop.apps.googleusercontent.com",
-    clientSecret: "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",
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
-
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const router = express.Router();
 
-const dotenv = require("dotenv");
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "/auth/google/callback",
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      // Check if user exists in our database
+      console.log("Profile", profile);
+      const existingUser = await User.findOne({ googleId: profile.id });
+
+      if (existingUser) {
+        return done(null, existingUser);
+      }
+
+      // If not, create a new user
+      const user = await new User({ googleId: profile.id }).save();
+      done(null, user);
+    }
+  )
+);
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  const user = await User.findById(id);
+  done(null, user);
+});
+
+// Setup nodemailer
+// let transporter = nodemailer.createTransport({
+//   // Trasnport configuration
+//   service: "gmail",
+//   auth: {
+//     type: "OAuth2",
+//     user: "dolwinf@gmail.com",
+//     clientId:
+//       "501654627364-bd2pvnpgvie8se9jnmbjinbrqgabgdop.apps.googleusercontent.com",
+//     clientSecret: "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",
+//   },
+//   tls: {
+//     rejectUnauthorized: false,
+//   },
+// });
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: ".env.production" });
 } else {
   dotenv.config({ path: ".env.development" });
 }
+
+router.get(
+  "/auth/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  })
+);
+
+router.get(
+  "/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  (req, res) => {
+    console.log("Logged in");
+    res.redirect("/");
+  }
+);
 
 router.post("/register", async (req, res) => {
   const { email, password } = req.body;
