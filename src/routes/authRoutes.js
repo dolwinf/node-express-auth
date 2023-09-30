@@ -22,15 +22,22 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       // Check if user exists in our database
-      console.log("Profile", profile);
-      const existingUser = await User.findOne({ googleId: profile.id });
+      const { provider } = profile;
+      const { given_name, family_name, email, picture } = profile._json;
+      const existingUser = await User.findOne({ email: email });
 
       if (existingUser) {
         return done(null, existingUser);
       }
 
       // If not, create a new user
-      const user = await new User({ googleId: profile.id }).save();
+      //Need to fix this part to save a user to the DB
+      const user = await new User({
+        email: email,
+        first_name: given_name,
+        last_name: family_name,
+        auth_provider: provider,
+      }).save();
       done(null, user);
     }
   )
@@ -44,28 +51,6 @@ passport.deserializeUser(async (id, done) => {
   const user = await User.findById(id);
   done(null, user);
 });
-
-// Setup nodemailer
-// let transporter = nodemailer.createTransport({
-//   // Trasnport configuration
-//   service: "gmail",
-//   auth: {
-//     type: "OAuth2",
-//     user: "dolwinf@gmail.com",
-//     clientId:
-//       "501654627364-bd2pvnpgvie8se9jnmbjinbrqgabgdop.apps.googleusercontent.com",
-//     clientSecret: "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",
-//   },
-//   tls: {
-//     rejectUnauthorized: false,
-//   },
-// });
-
-if (process.env.NODE_ENV === "production") {
-  dotenv.config({ path: ".env.production" });
-} else {
-  dotenv.config({ path: ".env.development" });
-}
 
 router.get(
   "/auth/google",

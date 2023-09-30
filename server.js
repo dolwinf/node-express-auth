@@ -16,7 +16,6 @@ mongoose
   .catch((e) => console.log("Unable to connect to MongoDB Atlas", e));
 
 app.use(express.json());
-app.use("/", authRoutes);
 
 //Session
 app.use(
@@ -29,6 +28,8 @@ app.use(
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use("/", authRoutes);
 
 app.listen(3000, () => {
   console.log("Server is running on http://localhost:3000");
