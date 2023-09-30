@@ -40,11 +40,12 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  done(null, user.id);
+  console.log("User serialization", user);
+  done(null, user._id);
 });
 
 passport.deserializeUser(async (id, done) => {
-  const user = await User.findById(id);
+  const user = await User.findById({ _id: id });
   done(null, user);
 });
 
@@ -63,5 +64,19 @@ router.get(
     res.redirect("/");
   }
 );
+
+router.get("/logout", (req, res) => {
+  //.logout is provided by passport on the request object
+  req.logout(() => {
+    req.session.destroy((err) => {
+      // Destroy the session data
+      if (err) {
+        return res.redirect("/"); // In case of error, redirect to home
+      }
+      res.clearCookie("connect.sid"); // Clear the session cookie
+      res.redirect("/");
+    });
+  });
+});
 
 module.exports = router;
